@@ -1,0 +1,10 @@
+name: EnderSwap
+main: com.github.james9909.enderswap.EnderSwap
+api-version: 1.19
+version: 0.1.0
+author: james9909
+depend: []
+commands:
+  enderswap:
+    description: Swap your hotbar with a specified row in your enderchest.
+    usage: /enderswap <1-3>

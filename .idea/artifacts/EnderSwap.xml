@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="EnderSwap">
+    <output-path>$PROJECT_DIR$/out/artifacts/EnderSwap</output-path>
+    <root id="archive" name="EnderSwap.jar">
+      <element id="file-copy" path="$PROJECT_DIR$/src/main/resources/plugin.yaml" />
+    </root>
+  </artifact>
+</component>
