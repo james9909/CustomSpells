@@ -4,11 +4,11 @@ import org.gradle.api.tasks.testing.logging.TestLogEvent
 plugins {
     id 'idea'
     id 'org.jetbrains.kotlin.jvm' version '1.6.10'
-    id 'com.github.johnrengelman.shadow' version '7.2.1'
+    id 'com.github.johnrengelman.shadow' version '7.1.2'
 }
 
 wrapper {
-    gradleVersion = "7.6
+    gradleVersion = "7.6"
     setDistributionType(Wrapper.DistributionType.ALL)
 }
 
