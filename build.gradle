@@ -23,10 +23,8 @@ jar.enabled = false
 tasks.build.dependsOn tasks.shadowJar
 
 shadowJar {
-    minimize()
+    configurations = [project.configurations.shadow]
     relocate("kotlin", "com.github.james9909.enderswap.shaded.kotlin")
-
-    exclude "META-INF/**"
 }
 
 tasks.withType(Jar) {
