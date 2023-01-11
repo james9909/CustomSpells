@@ -1,4 +1,7 @@
 package com.github.james9909.enderswap
 
-class EnderSwap {
+import org.bukkit.plugin.java.JavaPlugin
+
+class EnderSwap : JavaPlugin {
+    constructor(): super()
 }
