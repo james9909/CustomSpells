@@ -23,7 +23,8 @@ jar.enabled = false
 tasks.build.dependsOn tasks.shadowJar
 
 shadowJar {
-    configurations = [project.configurations.shadow]
+    project.configurations.implementation.canBeResolved = true
+    configurations = [project.configurations.implementation]
     relocate("kotlin", "com.github.james9909.enderswap.shaded.kotlin")
 }
 
