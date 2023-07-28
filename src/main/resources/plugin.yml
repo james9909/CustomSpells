@@ -1,15 +1,7 @@
-name: EnderSwap
-main: com.github.james9909.enderswap.EnderSwap
-api-version: 1.19
+name: CustomSpells
+main: com.github.james9909.customspells.CustomSpells
+api-version: 1.18
 version: 0.1.0
 author: james9909
+softdepend: [MagicSpells]
 depend: []
-permissions:
-  enderswap.user:
-    description: Permission to run enderswap
-    default: op
-commands:
-  enderswap:
-    description: Swap your hotbar with a specified row in your enderchest.
-    usage: /enderswap <1-3>
-    permission: enderswap.user
