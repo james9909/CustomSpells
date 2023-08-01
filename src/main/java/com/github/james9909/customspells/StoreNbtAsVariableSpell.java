@@ -1,7 +1,6 @@
 package com.github.james9909.customspells;
 
-import io.github.bananapuncher714.nbteditor.NBTEditor;
-import org.bukkit.craftbukkit.v1_20_R1.inventory.CraftItemStack;
+import com.saicone.rtag.RtagItem;
 import org.bukkit.inventory.ItemStack;
 import com.nisovin.magicspells.util.managers.VariableManager;
 import org.bukkit.entity.Player;
@@ -14,8 +13,7 @@ import java.util.List;
 import java.util.HashMap;
 import com.nisovin.magicspells.spells.InstantSpell;
 
-public class StoreNbtAsVariableSpell extends InstantSpell
-{
+public class StoreNbtAsVariableSpell extends InstantSpell {
     private HashMap<String, String> nbtToVariableMapping;
     private List<String> variables;
 
@@ -39,18 +37,26 @@ public class StoreNbtAsVariableSpell extends InstantSpell
     }
 
     public Spell.PostCastAction castSpell(final LivingEntity caster, final Spell.SpellCastState state, final float power, final String[] args) {
-        if (!(caster instanceof Player)) {
+        if (!(caster instanceof Player player)) {
             return Spell.PostCastAction.HANDLE_NORMALLY;
         }
-        final Player player = (Player)caster;
         final VariableManager variableManager = MagicSpells.getVariableManager();
         final ItemStack item = player.getInventory().getItemInMainHand();
         this.nbtToVariableMapping.forEach((nbtKey, msVariable) -> {
-            if (NBTEditor.contains(item, nbtKey)) {
-                String nbtValue = NBTEditor.getString(item, nbtKey);
-                try {
-                    variableManager.set(msVariable, player, nbtValue);
-                } catch (Exception e) {}
+            RtagItem tag = new RtagItem(item);
+            Object value = tag.get(nbtKey);
+            if (value instanceof Double) {
+                variableManager.set(msVariable, player, (Double) value);
+            } else if (value instanceof Byte) {
+                variableManager.set(msVariable, player, (Byte) value);
+            } else if (value instanceof String) {
+                variableManager.set(msVariable, player, (String) value);
+            } else if (value instanceof Short) {
+                variableManager.set(msVariable, player, (Short) value);
+            } else if (value instanceof Integer) {
+                variableManager.set(msVariable, player, (Integer) value);
+            } else if (value instanceof Float) {
+                variableManager.set(msVariable, player, (Float) value);
             }
         });
         return Spell.PostCastAction.HANDLE_NORMALLY;
