@@ -1,6 +1,7 @@
 package com.github.james9909.customspells;
 
 import com.saicone.rtag.RtagItem;
+import org.bukkit.inventory.Inventory;
 import org.bukkit.inventory.ItemStack;
 import com.nisovin.magicspells.util.managers.VariableManager;
 import org.bukkit.entity.Player;
@@ -12,15 +13,18 @@ import com.nisovin.magicspells.util.MagicConfig;
 import java.util.List;
 import java.util.HashMap;
 import com.nisovin.magicspells.spells.InstantSpell;
+import org.bukkit.inventory.PlayerInventory;
 
 public class StoreNbtAsVariableSpell extends InstantSpell {
     private HashMap<String, String> nbtToVariableMapping;
     private List<String> variables;
+    private String position;
 
     public StoreNbtAsVariableSpell(final MagicConfig config, final String spellName) {
         super(config, spellName);
         this.nbtToVariableMapping = new HashMap<String, String>();
         this.variables = this.getConfigStringList("variables", new ArrayList());
+        this.position = this.getConfigString("slot", "hand");
     }
 
     protected void initialize() {
@@ -40,10 +44,24 @@ public class StoreNbtAsVariableSpell extends InstantSpell {
         if (!(caster instanceof Player player)) {
             return Spell.PostCastAction.HANDLE_NORMALLY;
         }
-        final VariableManager variableManager = MagicSpells.getVariableManager();
-        final ItemStack item = player.getInventory().getItemInMainHand();
+        VariableManager variableManager = MagicSpells.getVariableManager();
+        PlayerInventory inventory = player.getInventory();
+        ItemStack item = inventory.getItemInMainHand();
+        if (this.position.equals("offhand")) {
+            item = inventory.getItemInOffHand();
+        } else {
+            // Try to cast to number
+            try {
+                int position = Integer.parseInt(this.position);
+                item = inventory.getItem(position);
+            } catch (Exception e) {}
+        }
+        if (item == null) {
+            return PostCastAction.HANDLE_NORMALLY;
+        }
+        ItemStack finalItem = item;
         this.nbtToVariableMapping.forEach((nbtKey, msVariable) -> {
-            RtagItem tag = new RtagItem(item);
+            RtagItem tag = new RtagItem(finalItem);
             Object value = tag.get(nbtKey);
             if (value instanceof Double) {
                 variableManager.set(msVariable, player, (Double) value);
@@ -62,3 +80,4 @@ public class StoreNbtAsVariableSpell extends InstantSpell {
         return Spell.PostCastAction.HANDLE_NORMALLY;
     }
 }
+
