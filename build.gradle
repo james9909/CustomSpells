@@ -53,8 +53,6 @@ repositories {
 
 dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
-    implementation "com.saicone.rtag:rtag:1.5.16"
-    implementation "com.saicone.rtag:rtag-item:1.5.16"
     compileOnly "de.tr7zw:item-nbt-api-plugin:2.15.7"
     compileOnly ":MagicSpells-4.0-Beta-16"
     compileOnly "io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT"

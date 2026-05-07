@@ -5,7 +5,8 @@ import com.nisovin.magicspells.Spell;
 import com.nisovin.magicspells.spells.InstantSpell;
 import com.nisovin.magicspells.util.MagicConfig;
 import com.nisovin.magicspells.util.managers.VariableManager;
-import com.saicone.rtag.RtagItem;
+import de.tr7zw.nbtapi.NBT;
+import de.tr7zw.nbtapi.NBTType;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
@@ -62,23 +63,19 @@ public class StoreNbtAsVariableSpell extends InstantSpell {
         if (item == null) {
             return PostCastAction.HANDLE_NORMALLY;
         }
-        ItemStack finalItem = item;
         this.nbtToVariableMapping.forEach((nbtKey, msVariable) -> {
-            RtagItem tag = new RtagItem(finalItem);
-            Object value = tag.get(nbtKey);
-            if (value instanceof Double) {
-                variableManager.set(msVariable, player, (Double) value);
-            } else if (value instanceof Byte) {
-                variableManager.set(msVariable, player, (Byte) value);
-            } else if (value instanceof String) {
-                variableManager.set(msVariable, player, (String) value);
-            } else if (value instanceof Short) {
-                variableManager.set(msVariable, player, (Short) value);
-            } else if (value instanceof Integer) {
-                variableManager.set(msVariable, player, (Integer) value);
-            } else if (value instanceof Float) {
-                variableManager.set(msVariable, player, (Float) value);
-            }
+            NBT.get(item, nbt -> {
+                NBTType nbtType = nbt.getType(nbtKey);
+                switch (nbtType) {
+                    case NBTTagDouble -> variableManager.set(msVariable, player, nbt.getDouble(nbtKey));
+                    case NBTTagByte -> variableManager.set(msVariable, player, nbt.getByte(nbtKey));
+                    case NBTTagString -> variableManager.set(msVariable, player, nbt.getString(nbtKey));
+                    case NBTTagShort -> variableManager.set(msVariable, player, nbt.getShort(nbtKey));
+                    case NBTTagInt -> variableManager.set(msVariable, player, nbt.getInteger(nbtKey));
+                    case NBTTagFloat -> variableManager.set(msVariable, player, nbt.getFloat(nbtKey));
+                    case NBTTagLong -> variableManager.set(msVariable, player, nbt.getLong(nbtKey));
+                }
+            });
         });
         return Spell.PostCastAction.HANDLE_NORMALLY;
     }
