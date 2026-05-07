@@ -45,6 +45,7 @@ repositories {
     maven { url = "https://repo.codemc.io/repository/maven-public/" }
     maven { url = "https://oss.sonatype.org/content/repositories/snapshots" }
     maven { url = "https://jitpack.io" }
+    maven { url = "https://repo.codemc.io/repository/maven-public/" }
     flatDir {
         dirs "lib"
     }
@@ -54,6 +55,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8"
     implementation "com.saicone.rtag:rtag:1.5.16"
     implementation "com.saicone.rtag:rtag-item:1.5.16"
+    compileOnly "de.tr7zw:item-nbt-api-plugin:2.15.7"
     compileOnly ":MagicSpells-4.0-Beta-16"
     compileOnly "io.papermc.paper:paper-api:1.21.11-R0.1-SNAPSHOT"
     // paperweightDevelopmentBundle("io.papermc.paper:dev-bundle:1.21.11-R0.1-SNAPSHOT")
