@@ -66,6 +66,9 @@ public class StoreNbtAsVariableSpell extends InstantSpell {
         this.nbtToVariableMapping.forEach((nbtKey, msVariable) -> {
             NBT.get(item, nbt -> {
                 NBTType nbtType = nbt.getType(nbtKey);
+                if (nbtType == null) {
+                    return;
+                }
                 switch (nbtType) {
                     case NBTTagDouble -> variableManager.set(msVariable, player, nbt.getDouble(nbtKey));
                     case NBTTagByte -> variableManager.set(msVariable, player, nbt.getByte(nbtKey));
