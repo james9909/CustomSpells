@@ -83,4 +83,3 @@ public class StoreNbtAsVariableSpell extends InstantSpell {
         return Spell.PostCastAction.HANDLE_NORMALLY;
     }
 }
-
