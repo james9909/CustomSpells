@@ -1,5 +1,6 @@
 package com.github.james9909.customspells;
 
+import io.papermc.paper.chat.ChatRenderer;
 import io.papermc.paper.event.player.AsyncChatEvent;
 import net.kyori.adventure.audience.Audience;
 import net.kyori.adventure.text.Component;
@@ -18,23 +19,31 @@ public class DialogueChatListener implements Listener {
 
     @EventHandler(ignoreCancelled = true)
     public void onChat(AsyncChatEvent event) {
+        if (!DialogueManager.hasAnyActiveSessions()) {
+            return;
+        }
+
         Set<Audience> viewers = event.viewers();
 
-        List<Player> paused = new ArrayList<>();
+        List<Player> paused = null;
         for (Audience viewer : viewers) {
             if (viewer instanceof Player player && DialogueManager.hasActiveSession(player.getUniqueId())) {
+                if (paused == null) {
+                    paused = new ArrayList<>();
+                }
                 paused.add(player);
             }
         }
-        if (paused.isEmpty()) {
+        if (paused == null) {
             return;
         }
 
         Player source = event.getPlayer();
         Component displayName = source.displayName();
+        Component message = event.message();
+        ChatRenderer renderer = event.renderer();
         for (Player player : paused) {
-            // Render the line exactly as this viewer would have seen it, then hold it for replay.
-            Component rendered = event.renderer().render(source, displayName, event.message(), player);
+            Component rendered = renderer.render(source, displayName, message, player);
             DialogueManager.hold(player.getUniqueId(), rendered);
         }
         viewers.removeAll(paused);
@@ -42,7 +51,6 @@ public class DialogueChatListener implements Listener {
 
     @EventHandler
     public void onQuit(PlayerQuitEvent event) {
-        // Player is gone; drop the session and any messages it was holding.
         DialogueManager.endSession(event.getPlayer().getUniqueId());
     }
 }

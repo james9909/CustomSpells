@@ -1,0 +1,5 @@
+# CustomSpells configuration
+
+# Maximum number of chat messages held back per player while they are in a DialogueSpell.
+# Set to 0 for no limit.
+dialogue-spell-catch-up-limit: 50
