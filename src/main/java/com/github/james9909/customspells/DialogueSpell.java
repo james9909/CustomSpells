@@ -7,6 +7,8 @@ import com.nisovin.magicspells.castmodifiers.ModifierSet;
 import com.nisovin.magicspells.spells.InstantSpell;
 import com.nisovin.magicspells.util.MagicConfig;
 import com.nisovin.magicspells.util.SpellData;
+import com.nisovin.magicspells.util.config.ConfigData;
+import com.nisovin.magicspells.util.config.ConfigDataUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.event.ClickEvent;
@@ -43,7 +45,9 @@ public class DialogueSpell extends InstantSpell {
 
     private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
 
-    private final List<String> headings;
+    // Headings and option text are stored as ConfigData so they resolve MagicSpells variables (global
+    // and per-caster) at cast time, while still going through the legacy '&' color-code serializer.
+    private final List<ConfigData<String>> headings = new ArrayList<>();
     private final List<DialogueOption> options = new ArrayList<>();
     private final String strExpired;
     private final Random random = new Random();
@@ -51,7 +55,9 @@ public class DialogueSpell extends InstantSpell {
     public DialogueSpell(MagicConfig config, String spellName) {
         super(config, spellName);
 
-        this.headings = getConfigStringList("headings", new ArrayList<>());
+        for (String heading : getConfigStringList("headings", new ArrayList<>())) {
+            this.headings.add(ConfigDataUtil.getString(heading));
+        }
         this.strExpired = getConfigString("str-expired", "That dialogue is no longer available.");
 
         ConfigurationSection optionsSection = getConfigSection("options");
@@ -67,7 +73,7 @@ public class DialogueSpell extends InstantSpell {
             }
 
             DialogueOption option = new DialogueOption();
-            option.text = optionSection.getString("text", "");
+            option.text = ConfigDataUtil.getString(optionSection.getString("text", ""));
             option.modifiers = optionSection.getStringList("modifiers");
             option.spellOnClickName = optionSection.getString("spell-on-click");
             this.options.add(option);
@@ -110,7 +116,9 @@ public class DialogueSpell extends InstantSpell {
 	// Invalidate any old dialogues.
         UUID token = DialogueManager.startSession(player.getUniqueId());
 
-        String heading = this.headings.get(this.random.nextInt(this.headings.size()));
+        SpellData data = new SpellData(player, power, args);
+
+        String heading = this.headings.get(this.random.nextInt(this.headings.size())).get(data);
         player.sendMessage(LEGACY.deserialize(heading));
 
         for (DialogueOption option : this.options) {
@@ -120,13 +128,14 @@ public class DialogueSpell extends InstantSpell {
             if (option.modifierSet != null && !option.modifierSet.check(player)) {
                 continue;
             }
-            player.sendMessage(buildOptionComponent(player, token, option, power, args));
+            Component base = LEGACY.deserialize(option.text.get(data));
+            player.sendMessage(buildOptionComponent(base, player, token, option, power, args));
         }
 
         return PostCastAction.HANDLE_NORMALLY;
     }
 
-    private Component buildOptionComponent(Player player, UUID token, DialogueOption option, float power, String[] args) {
+    private Component buildOptionComponent(Component base, Player player, UUID token, DialogueOption option, float power, String[] args) {
         Subspell spellOnClick = option.spellOnClick;
         UUID playerId = player.getUniqueId();
 
@@ -150,11 +159,11 @@ public class DialogueSpell extends InstantSpell {
                 ClickCallback.Options.builder().uses(ClickCallback.UNLIMITED_USES).build()
         );
 
-        return LEGACY.deserialize(option.text).clickEvent(clickEvent);
+        return base.clickEvent(clickEvent);
     }
 
     private static class DialogueOption {
-        private String text;
+        private ConfigData<String> text;
         private List<String> modifiers;
         private ModifierSet modifierSet;
         private String spellOnClickName;
