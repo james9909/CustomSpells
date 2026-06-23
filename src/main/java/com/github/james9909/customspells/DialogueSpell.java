@@ -4,122 +4,160 @@ import com.nisovin.magicspells.MagicSpells;
 import com.nisovin.magicspells.Spell;
 import com.nisovin.magicspells.Subspell;
 import com.nisovin.magicspells.castmodifiers.ModifierSet;
-import com.nisovin.magicspells.events.MagicSpellsGenericPlayerEvent;
 import com.nisovin.magicspells.spells.InstantSpell;
 import com.nisovin.magicspells.util.MagicConfig;
-import io.papermc.paper.dialog.Dialog;
-import io.papermc.paper.event.player.PlayerCustomClickEvent;
-import io.papermc.paper.registry.data.dialog.ActionButton;
-import io.papermc.paper.registry.data.dialog.DialogBase;
-import io.papermc.paper.registry.data.dialog.action.DialogAction;
-import io.papermc.paper.registry.data.dialog.type.DialogType;
-import net.kyori.adventure.key.Key;
+import com.nisovin.magicspells.util.SpellData;
 import net.kyori.adventure.text.Component;
-import org.bukkit.ChatColor;
+import net.kyori.adventure.text.event.ClickCallback;
+import net.kyori.adventure.text.event.ClickEvent;
+import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.conversations.Prompt;
 import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
-import org.bukkit.event.EventHandler;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.UUID;
 
+/**
+ * Prints a randomly-chosen heading followed by a list of clickable options to chat. Clicking an
+ * option casts its configured spell.
+ *
+ * Dialogue1:
+ *     spell-class: ".DialogueSpell"
+ *     headings:
+ *         - "&amp;fJames: Hello1"
+ *         - "&amp;fJames: Hello2"
+ *     options:
+ *         option1:
+ *             text: "Hello World!"
+ *             modifiers:
+ *                 - sneaking required
+ *             spell-on-click: Dialogue2
+ *         option2:
+ *             text: "Goodbye."
+ *             spell-on-click: Dialogue3
+ */
 public class DialogueSpell extends InstantSpell {
-    private List<String> headings;
-    private List<DialogueOption> options;
-    private Random random;
+
+    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
+
+    private final List<String> headings;
+    private final List<DialogueOption> options = new ArrayList<>();
+    private final String strExpired;
+    private final Random random = new Random();
 
     public DialogueSpell(MagicConfig config, String spellName) {
         super(config, spellName);
 
-        this.random = new Random();
-        this.headings = getConfigStringList("headings", null);
+        this.headings = getConfigStringList("headings", new ArrayList<>());
+        this.strExpired = getConfigString("str-expired", "That dialogue is no longer available.");
 
-        ConfigurationSection options = getConfigSection("options");
-        if (options == null || options.getKeys(false).isEmpty()) {
+        ConfigurationSection optionsSection = getConfigSection("options");
+        if (optionsSection == null || optionsSection.getKeys(false).isEmpty()) {
             MagicSpells.error("DialogueSpell '" + spellName + "' has no dialogue options.");
             return;
         }
 
-        this.options = new ArrayList<>();
-        options.getValues(true).forEach((key, value) -> {
-            if (value == null) {
-                return;
-            }
-            if (!(value instanceof ConfigurationSection optionSection)) {
-                return;
+        for (String key : optionsSection.getKeys(false)) {
+            ConfigurationSection optionSection = optionsSection.getConfigurationSection(key);
+            if (optionSection == null) {
+                continue;
             }
 
-            DialogueOption dialogueOption = new DialogueOption();
-            dialogueOption.text = optionSection.getString("text");
-            dialogueOption.modifiers = optionSection.getStringList("modifiers");
-            dialogueOption.spellOnClickName = optionSection.getString("spell-on-click");
-            this.options.add(dialogueOption);
-        });
+            DialogueOption option = new DialogueOption();
+            option.text = optionSection.getString("text", "");
+            option.modifiers = optionSection.getStringList("modifiers");
+            option.spellOnClickName = optionSection.getString("spell-on-click");
+            this.options.add(option);
+        }
     }
 
+    @Override
     protected void initialize() {
         super.initialize();
 
         for (DialogueOption option : this.options) {
-            option.spellOnClick = initSubspell(option.spellOnClickName, "Invalid subspell %s".formatted(option.spellOnClickName));
+            option.spellOnClick = initSubspell(
+                    option.spellOnClickName,
+                    "DialogueSpell '" + internalName + "' has an invalid spell-on-click: " + option.spellOnClickName
+            );
         }
     }
 
+    @Override
     protected void initializeModifiers() {
         super.initializeModifiers();
 
         for (DialogueOption option : this.options) {
-            option.modifierSet = new ModifierSet(option.modifiers, this);
+            if (option.modifiers != null && !option.modifiers.isEmpty()) {
+                option.modifierSet = new ModifierSet(option.modifiers, this);
+            }
         }
     }
 
-    public Spell.PostCastAction castSpell(final LivingEntity caster, final Spell.SpellCastState state, final float power, final String[] args) {
-        if (!(caster instanceof Player)) {
+    @Override
+    public PostCastAction castSpell(LivingEntity caster, SpellCastState state, float power, String[] args) {
+        if (state != SpellCastState.NORMAL || !(caster instanceof Player player)) {
+            return PostCastAction.HANDLE_NORMALLY;
+        }
+        if (this.headings.isEmpty()) {
+            MagicSpells.error("DialogueSpell '" + internalName + "' has no headings to show.");
             return PostCastAction.HANDLE_NORMALLY;
         }
 
-        Player player = (Player) caster;
-        int index = this.random.nextInt(this.headings.size());
-        String title = this.headings.get(index);
-        List<ActionButton> buttons = new ArrayList<>();
-        for (DialogueOption option : this.options) {
-            MagicSpellsGenericPlayerEvent event = new MagicSpellsGenericPlayerEvent(player);
-            option.modifierSet.apply(event);
-            if (!event.isCancelled()) {
-                buttons.add(ActionButton.builder(Component.text(ChatColor.translateAlternateColorCodes('&', option.text)))
-                        .action(DialogAction.customClick(Key.key("customspells:%s".formatted(option.id)), null))
-                        .build());
-            }
-        }
+	// Invalidate any old dialogues.
+        UUID token = DialogueManager.startSession(player.getUniqueId());
 
-        Dialog dialog = Dialog.create(builder ->
-                builder.empty()
-                        .base(DialogBase.builder(Component.text(ChatColor.translateAlternateColorCodes('&', title))).build())
-                        .type(DialogType.multiAction(buttons).build())
-        );
-        caster.sendMessage();
-        caster.showDialog(dialog);
+        String heading = this.headings.get(this.random.nextInt(this.headings.size()));
+        player.sendMessage(LEGACY.deserialize(heading));
+
+        for (DialogueOption option : this.options) {
+            if (option.spellOnClick == null) {
+                continue;
+            }
+            if (option.modifierSet != null && !option.modifierSet.check(player)) {
+                continue;
+            }
+            player.sendMessage(buildOptionComponent(player, token, option, power, args));
+        }
 
         return PostCastAction.HANDLE_NORMALLY;
     }
 
-    @EventHandler
-    public void onHandleDialog(PlayerCustomClickEvent event) {
-        System.out.println(event.getIdentifier());
+    private Component buildOptionComponent(Player player, UUID token, DialogueOption option, float power, String[] args) {
+        Subspell spellOnClick = option.spellOnClick;
+        UUID playerId = player.getUniqueId();
+
+        ClickCallback<net.kyori.adventure.audience.Audience> callback = audience -> {
+            // Re-resolve the player: the click arrives later and the cached reference may be stale.
+            Player clicker = player.getServer().getPlayer(playerId);
+            if (clicker == null) {
+                return;
+            }
+            if (!DialogueManager.isActive(playerId, token)) {
+                if (!strExpired.isEmpty()) {
+                    sendMessage(clicker, strExpired);
+                }
+                return;
+            }
+            spellOnClick.subcast(new SpellData(clicker, power, args));
+        };
+
+        ClickEvent clickEvent = ClickEvent.callback(
+                callback,
+                ClickCallback.Options.builder().uses(ClickCallback.UNLIMITED_USES).build()
+        );
+
+        return LEGACY.deserialize(option.text).clickEvent(clickEvent);
     }
 
     private static class DialogueOption {
-        private UUID id;
         private String text;
         private List<String> modifiers;
         private ModifierSet modifierSet;
         private String spellOnClickName;
         private Subspell spellOnClick;
     }
-
-    private class DialogueSpellConversation extends Prompt
 }
