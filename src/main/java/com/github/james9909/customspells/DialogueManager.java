@@ -2,9 +2,7 @@ package com.github.james9909.customspells;
 
 import net.kyori.adventure.text.Component;
 
-import java.util.ArrayDeque;
 import java.util.ArrayList;
-import java.util.Deque;
 import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -15,35 +13,31 @@ final class DialogueManager {
     static final int DEFAULT_CATCH_UP_LIMIT = 50;
     private static volatile int catchUpLimit = DEFAULT_CATCH_UP_LIMIT;
 
-    private static final ConcurrentHashMap<UUID, Session> SESSIONS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<UUID, DialogueSession> SESSIONS = new ConcurrentHashMap<>();
 
     private DialogueManager() {}
-
-    private static final class Session {
-        private volatile UUID token;
-        private final Deque<Component> held = new ArrayDeque<>();
-
-        private Session(UUID token) {
-            this.token = token;
-        }
-    }
 
     static void setCatchUpLimit(int limit) {
         catchUpLimit = limit;
     }
 
-    static UUID startSession(UUID playerId) {
-        UUID token = UUID.randomUUID();
-        SESSIONS.compute(playerId, (id, existing) -> {
-            Session session = existing != null ? existing : new Session(token);
-            session.token = token;
+    static void setActive(DialogueSession session) {
+        SESSIONS.compute(session.playerId, (id, existing) -> {
+            if (existing != null) {
+                synchronized (existing.held) {
+                    session.held.addAll(existing.held);
+                }
+            }
             return session;
         });
-        return token;
+    }
+
+    static DialogueSession get(UUID playerId) {
+        return SESSIONS.get(playerId);
     }
 
     static boolean isActive(UUID playerId, UUID token) {
-        Session session = SESSIONS.get(playerId);
+        DialogueSession session = SESSIONS.get(playerId);
         return session != null && token.equals(session.token);
     }
 
@@ -56,7 +50,7 @@ final class DialogueManager {
     }
 
     static boolean hold(UUID playerId, Component message) {
-        Session session = SESSIONS.get(playerId);
+        DialogueSession session = SESSIONS.get(playerId);
         if (session == null) {
             return false;
         }
@@ -73,7 +67,7 @@ final class DialogueManager {
     }
 
     static List<Component> endSession(UUID playerId) {
-        Session session = SESSIONS.remove(playerId);
+        DialogueSession session = SESSIONS.remove(playerId);
         if (session == null) {
             return List.of();
         }

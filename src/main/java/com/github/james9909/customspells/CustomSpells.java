@@ -8,5 +8,6 @@ public class CustomSpells extends JavaPlugin {
         this.saveDefaultConfig();
         DialogueManager.setCatchUpLimit(this.getConfig().getInt("dialogue-spell-catch-up-limit", DialogueManager.DEFAULT_CATCH_UP_LIMIT));
         this.getServer().getPluginManager().registerEvents(new DialogueChatListener(), this);
+        this.getServer().getPluginManager().registerEvents(new DialogueInputListener(), this);
     }
 }
