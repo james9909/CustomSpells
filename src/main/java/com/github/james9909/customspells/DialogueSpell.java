@@ -3,7 +3,6 @@ package com.github.james9909.customspells;
 import com.nisovin.magicspells.MagicSpells;
 import com.nisovin.magicspells.Subspell;
 import com.nisovin.magicspells.castmodifiers.ModifierSet;
-import com.nisovin.magicspells.spells.InstantSpell;
 import com.nisovin.magicspells.util.MagicConfig;
 import com.nisovin.magicspells.util.SpellData;
 import com.nisovin.magicspells.util.config.ConfigData;
@@ -11,9 +10,7 @@ import com.nisovin.magicspells.util.config.ConfigDataUtil;
 import net.kyori.adventure.text.Component;
 import net.kyori.adventure.text.event.ClickCallback;
 import net.kyori.adventure.text.event.ClickEvent;
-import net.kyori.adventure.text.serializer.legacy.LegacyComponentSerializer;
 import org.bukkit.configuration.ConfigurationSection;
-import org.bukkit.entity.LivingEntity;
 import org.bukkit.entity.Player;
 
 import java.util.ArrayList;
@@ -40,14 +37,11 @@ import java.util.UUID;
  *             text: "Goodbye."
  *             spell-on-click: Dialogue3
  */
-public class DialogueSpell extends InstantSpell {
-
-    private static final LegacyComponentSerializer LEGACY = LegacyComponentSerializer.legacyAmpersand();
+public class DialogueSpell extends AbstractDialogueSpell {
 
     private final List<ConfigData<String>> headings = new ArrayList<>();
     private final List<DialogueOption> options = new ArrayList<>();
     private final String strExpired;
-    private final int selectionClearLines;
     private final Random random = new Random();
 
     public DialogueSpell(MagicConfig config, String spellName) {
@@ -57,8 +51,6 @@ public class DialogueSpell extends InstantSpell {
             this.headings.add(ConfigDataUtil.getString(heading));
         }
         this.strExpired = getConfigString("str-expired", "That dialogue is no longer available.");
-        // Blank lines printed before each render to push old chat away and fake scroll-based option selection.
-        this.selectionClearLines = getConfigInt("selection-clear-lines", 20);
 
         ConfigurationSection optionsSection = getConfigSection("options");
         if (optionsSection == null || optionsSection.getKeys(false).isEmpty()) {
@@ -117,16 +109,11 @@ public class DialogueSpell extends InstantSpell {
     }
 
     @Override
-    public PostCastAction castSpell(LivingEntity caster, SpellCastState state, float power, String[] args) {
-        if (state != SpellCastState.NORMAL || !(caster instanceof Player player)) {
-            return PostCastAction.HANDLE_NORMALLY;
-        }
+    protected DialogueSession createSession(Player player, float power, String[] args, SpellData data) {
         if (this.headings.isEmpty()) {
             MagicSpells.error("DialogueSpell '" + internalName + "' has no headings to show.");
-            return PostCastAction.HANDLE_NORMALLY;
+            return null;
         }
-
-        SpellData data = new SpellData(player, power, args);
 
         List<DialogueOption> visible = new ArrayList<>();
         for (DialogueOption option : this.options) {
@@ -140,23 +127,13 @@ public class DialogueSpell extends InstantSpell {
         }
 
         ConfigData<String> heading = this.headings.get(this.random.nextInt(this.headings.size()));
-        DialogueSession session = new DialogueSession(this, player.getUniqueId(), power, args, data, heading, visible);
-
-        // Opening a new dialogue invalidates the options of any earlier one still in chat history.
-        DialogueManager.setActive(session);
-        render(player, session);
-        fireSelect(session);
-
-        return PostCastAction.HANDLE_NORMALLY;
+        return new MenuSession(this, player.getUniqueId(), power, args, data, heading, visible);
     }
 
     // Prints (or re-prints) the dialogue: a screenful of blank lines, the heading, then each option.
-    void render(Player player, DialogueSession session) {
-        for (int i = 0; i < this.selectionClearLines; i++) {
-            player.sendMessage(Component.empty());
-        }
-
-        player.sendMessage(LEGACY.deserialize(session.heading.get(session.data)));
+    void render(Player player, MenuSession session) {
+        clearScreen(player);
+        player.sendMessage(line(session.heading, session.data));
 
         List<DialogueOption> opts = session.options;
         for (int i = 0; i < opts.size(); i++) {
@@ -164,13 +141,12 @@ public class DialogueSpell extends InstantSpell {
 
             boolean selected = i == session.selected;
             ConfigData<String> textData = selected && option.textSelected != null ? option.textSelected : option.text;
-            Component base = LEGACY.deserialize(textData.get(session.data));
 
-            player.sendMessage(buildOptionComponent(base, player, session, option));
+            player.sendMessage(buildOptionComponent(line(textData, session.data), player, session, option));
         }
     }
 
-    void navigate(Player player, DialogueSession session, int direction) {
+    void navigate(Player player, MenuSession session, int direction) {
         int size = session.options.size();
         if (size <= 1) {
             return;
@@ -181,7 +157,7 @@ public class DialogueSpell extends InstantSpell {
         fireSelect(session);
     }
 
-    void triggerOptionClick(DialogueSession session, boolean rightClick) {
+    void triggerOptionClick(MenuSession session, boolean rightClick) {
         DialogueOption option = session.selectedOption();
         if (option == null) {
             return;
@@ -192,14 +168,14 @@ public class DialogueSpell extends InstantSpell {
         }
     }
 
-    private void fireSelect(DialogueSession session) {
+    void fireSelect(MenuSession session) {
         DialogueOption option = session.selectedOption();
         if (option != null && option.spellOnSelect != null) {
             option.spellOnSelect.subcast(session.data);
         }
     }
 
-    private Component buildOptionComponent(Component base, Player player, DialogueSession session, DialogueOption option) {
+    private Component buildOptionComponent(Component base, Player player, MenuSession session, DialogueOption option) {
         Subspell spellOnClick = option.spellOnClick;
         if (spellOnClick == null) {
             return base;
