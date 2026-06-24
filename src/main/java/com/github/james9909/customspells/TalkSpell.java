@@ -58,8 +58,13 @@ public class TalkSpell extends AbstractDialogueSpell {
         return new TalkSession(this, player.getUniqueId(), data);
     }
 
-    void display(Player player, TalkSession session) {
+    // Initial display: clear the chat once so the talk starts on a clean screen.
+    void begin(Player player, TalkSession session) {
         clearScreen(player);
+        display(player, session);
+    }
+
+    void display(Player player, TalkSession session) {
         player.sendMessage(line(this.lines.get(session.index), session.data));
     }
 

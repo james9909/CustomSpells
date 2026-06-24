@@ -21,7 +21,7 @@ final class TalkSession extends DialogueSession {
 
     @Override
     void open(Player player) {
-        spell.display(player, this);
+        spell.begin(player, this);
     }
 
     @Override
