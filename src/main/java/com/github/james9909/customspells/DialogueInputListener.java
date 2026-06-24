@@ -35,7 +35,7 @@ public class DialogueInputListener implements Listener {
             direction = -1;
         }
 
-        session.spell.navigate(player, session, direction);
+        session.scroll(player, direction);
     }
 
     @EventHandler
@@ -58,6 +58,6 @@ public class DialogueInputListener implements Listener {
             return;
         }
 
-        session.spell.triggerOptionClick(session, right);
+        session.click(player, right);
     }
 }
