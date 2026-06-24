@@ -11,6 +11,7 @@ import org.bukkit.inventory.EquipmentSlot;
 
 public class DialogueInputListener implements Listener {
 
+    @EventHandler
     public void handlePlayerItemHeld(PlayerItemHeldEvent event) {
         Player player = event.getPlayer();
         DialogueSession session = DialogueManager.get(player.getUniqueId());
@@ -37,6 +38,7 @@ public class DialogueInputListener implements Listener {
         session.spell.navigate(player, session, direction);
     }
 
+    @EventHandler
     public void handlePlayerInteract(PlayerInteractEvent event) {
         Player player = event.getPlayer();
         DialogueSession session = DialogueManager.get(player.getUniqueId());
